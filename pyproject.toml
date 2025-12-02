@@ -1,9 +1,21 @@
 [project]
 name = "astroskills-final"
 version = "0.1.0"
-description = "Add your description here"
+description = "Hierarchical Bayesian light-curve modeling for late-time WISE SNe"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "alerce>=2.1.1",
+    "matplotlib>=3.10.7",
 ]
+
+[build-system]
+requires = ["uv-build>=0.9.14,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.uv]
+package = true
+
+[tool.uv.build-backend]
+module-name = "tailwise"
+module-root = "src"
