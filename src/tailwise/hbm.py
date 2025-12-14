@@ -240,10 +240,14 @@ class TailHBModel:
 
         return self.df_clean
 
-    def prepare_data(self):
+    def prepare_data(self, filtered_df=None):
         """Prepare data for modeling."""
         if self.df_clean is None:
             self.clean_data()
+        
+        # for model assessment (mask detections + refit + predict + evaluate)
+        if filtered_df is not None:
+            self.df_clean = filtered_df
 
         df_model = self.df_clean[self.df_clean['band']==self.band_use].copy()
 
@@ -339,8 +343,11 @@ class TailHBModel:
         return trace
     
     def predict_tail(self, oid, phases=None, q=(16, 50, 84), include_intrinsic_scatter=False,
-                     random_seed=42):
+                     random_seed=42, nc_path=None):
         """Predict tail fluxes for a specific SN at given phases."""
+
+        if nc_path is not None:
+            self.inf_data = az.from_netcdf(nc_path)
 
         if self.inf_data is None:
             print("Model has not been fit yet.")

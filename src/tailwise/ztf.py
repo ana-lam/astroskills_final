@@ -175,7 +175,7 @@ def get_ztf_lc_data(oid, ra=None, dec=None, plot_LC=False, plot_flux=False,
         print(f"Could not fetch non-detections for {oid}: {e}")
         lc_nondet = pd.DataFrame()
 
-    if not (det_ok or nondet_ok):
+    if not det_ok or not nondet_ok:
         if pkl_filename.exists():
             try:
                 with open(pkl_filename, "rb") as f:
