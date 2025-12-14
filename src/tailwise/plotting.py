@@ -505,8 +505,8 @@ def plot_combined_lc(ztf_res, wise_res, oid, xlim=(None, None), ztf_flux=True, m
         raise ValueError("Invalid mode. Choose 'stacked' or 'overlay'.")
 
 
-def plot_tail_models(oid, pred_df, pred_curves, snr_min=3.0, ax=None, show_ls=True, show_hbm=True,
-                plot_wise=True, xlim=(None, None), ylim=(None, None)):
+def plot_tail_models(oid, df, pred_df, snr_min=3.0, ax=None, show_ls=True, show_hbm=True,
+                plot_wise=True, xlim=(None, None), ylim=(None, None), save_path=None):
     """
     Plot light curve with least-squares and HBM model fits overlaid.
     """
@@ -514,10 +514,10 @@ def plot_tail_models(oid, pred_df, pred_curves, snr_min=3.0, ax=None, show_ls=Tr
     if ax is None:
         fig, ax = plt.subplots(figsize=(7,5))
 
-    sn_df = df[df['name'] == oid].copy()
+    sn_df = df[df['oid'] == oid].copy()
     bands = sn_df['band'].unique()
 
-    ztf_res = pd.read_pickle(DATA_DIR / "ztf_forced_photometry" / f"{oid}_forced.pkl")
+    ztf_res = pd.read_pickle(DATA_DIR / "ztf_resdicts" / f"{oid}.pkl")
     markers = {"ZTF_g": "o", "ZTF_r": "X", "ZTF_i": "D"}
     colors = {"ZTF_g": "tab:green", "ZTF_r": "tab:red", "ZTF_i": "tab:orange"}
 
@@ -559,19 +559,19 @@ def plot_tail_models(oid, pred_df, pred_curves, snr_min=3.0, ax=None, show_ls=Tr
         ax.scatter(phase[lim_mask], lim_flux[lim_mask], marker="v", color=colors[band], alpha=0.5)
 
         # Keep track of x-limits from ZTF data
-        phase_max = phase.max()+30
+        phase_max = phase.max()+30.0
         xlim_ztf = ax.get_xlim()
 
     if show_ls:
 
-        if ['ls_alpha'] not in sn_df.columns or ['ls_beta'] not in sn_df.columns:
+        if 'ls_alpha' not in sn_df.columns or 'ls_beta' not in sn_df.columns:
             print("LS fit parameters not found in dataframe. Run fit_ls first.")
 
         # LS parameters 
         a_ls = sn_df["ls_alpha"].values[0]
         b_ls = sn_df["ls_beta"].values[0]
 
-        t_grid = np.linspace(0, phase_max, 200)
+        t_grid = np.linspace(-10, phase_max, 200)
 
         logf_ls = a_ls + b_ls * t_grid
         flux_ls = 10**logf_ls
@@ -585,13 +585,16 @@ def plot_tail_models(oid, pred_df, pred_curves, snr_min=3.0, ax=None, show_ls=Tr
                 )
     
     if show_hbm:
+        if pred_df is None:
+            print("HBM predictions not provided.")
+            return None
         alpha_med = pred_df['alpha_med'].values[0]
         beta_med = pred_df['beta_med'].values[0]
 
         ax.plot(pred_df['phase'].values, pred_df['flux_q50_mJy'].values,
                 color="mediumorchid",
                 linewidth=2,
-                label="HBM: log F = {alpha_med:.2f} + {beta_med:.4f} t")
+                label=f"HBM: log F = {alpha_med:.2f} + {beta_med:.4f} t")
         
         ax.fill_between(
             pred_df["phase"].values,
@@ -665,10 +668,14 @@ def plot_tail_models(oid, pred_df, pred_curves, snr_min=3.0, ax=None, show_ls=Tr
     if xlim != (None, None):
         ax.set_xlim(xlim)
     else:
-        ax.set_xlim(-10, phase_max)
+        ax.set_xlim(-5, phase_max)
 
     if ylim != (None, None):
         ax.set_ylim(ylim)
 
     plt.tight_layout()
     plt.show()
+
+    if save_path:
+        plt.savefig(save_path, format="pdf", bbox_inches="tight")
+        print(f"Saved plot to {save_path}")

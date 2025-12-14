@@ -44,8 +44,8 @@ class TailHBModel:
         self.init_sigma_beta = None
 
         # posterior predictives
-        self.pred = {}
-        self.pred_ppc = {}
+        self.pred_curves = {}
+        self.pred_curves_ppc = {}
 
     def _get_tail_start(self, oid, buffer_days=10.0):
         """Get the start time, t0,  of the tail for a specific object."""
@@ -350,7 +350,7 @@ class TailHBModel:
             self.prepare_data()
 
         if phases is None:
-            phases = np.linspace(0, 300., 301)
+            phases = np.linspace(-10, 330., 311)
         
         oid_to_idx = dict(zip(self.df_det["oid"], self.df_det["sn_idx_model"]))
 
@@ -362,9 +362,9 @@ class TailHBModel:
 
         # pull posterior samples
         posterior = self.inf_data.posterior
-        alpha_samples = posterior["alpha"].sel(alpha_dim_0=i).stack(draw=("chain", "draw")).values
-        beta_samples = posterior["beta"].sel(beta_dim_0=i).stack(draw=("chain", "draw")).values
-        sigma_int_samples = posterior["sigma_int"].stack(draw=("chain", "draw")).values
+        alpha_samples = posterior["alpha"].isel(alpha_dim_0=i).stack(s=("chain", "draw")).values
+        beta_samples = posterior["beta"].isel(beta_dim_0=i).stack(s=("chain", "draw")).values
+        sigma_int_samples = posterior["sigma_int"].stack(s=("chain", "draw")).values
 
         mu_log = alpha_samples[:, None] + beta_samples[:, None] * phases[None, :]
 

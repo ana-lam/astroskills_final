@@ -3,10 +3,13 @@ name = "astroskills-final"
 version = "0.1.0"
 description = "Hierarchical Bayesian light-curve modeling for late-time WISE SNe"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 dependencies = [
     "alerce>=2.1.1",
+    "emcee>=3.1.6",
     "matplotlib>=3.10.7",
+    "pymc>=5.26.1",
+    "tqdm>=4.67.1",
 ]
 
 [build-system]
