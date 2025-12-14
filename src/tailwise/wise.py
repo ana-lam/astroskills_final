@@ -1,7 +1,6 @@
 import numpy as np
 import glob
 import json
-from .plotting import plot_wise_lc
 from pathlib import Path
 
 # data directory
@@ -187,7 +186,7 @@ def _subtract_wise_parity_baseline(wise_resdict, clip_negatives=True, dt=200,
 
     return w
 
-def get_wise_lc_data(oid, plot_LC=False):
+def get_wise_lc_data(oid, plot_LC=False, verbose=False):
     """
     Fetch WISE/NEOWISE light curve data for a given object ID. 
     LCs are in data/ztf_snii_lcs_WISE and were provided by K. De.
@@ -196,7 +195,8 @@ def get_wise_lc_data(oid, plot_LC=False):
     try:
         filename = glob.glob(str(DATA_DIR / f"ztf_snii_lcs_WISE/lightcurve_{oid}_*.json"))[0]
     except IndexError:
-        print(f"No WISE light curve file found for {oid}")
+        if verbose:
+            print(f"No WISE light curve file found for {oid}")
         return {}
     
     f = open(filename, 'r')
@@ -237,6 +237,7 @@ def get_wise_lc_data(oid, plot_LC=False):
     resdict = _subtract_wise_parity_baseline(resdict)
     
     if plot_LC:
+        from .plotting import plot_wise_lc
         plot_wise_lc(resdict, oid)
 
     return resdict

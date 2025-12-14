@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 from alerce.core import Alerce
@@ -149,12 +150,19 @@ def get_ztf_lc_data(oid, ra=None, dec=None, plot_LC=False, plot_flux=False,
         Days before and after the first detection to include in forced photometry request.
     """
 
+    # Save in pkl because sometimes Alerce API is down
+    pkl_filename = DATA_DIR / f"ztf_resdicts/{oid}.pkl"
+
     results = {"oid": oid}
+
+    det_ok = False
+    nondet_ok = False
 
     # -- Fetch ALeRCE detections --
     try:
         lc_det = client.query_detections(oid, format='pandas').sort_values("mjd")
         results["lc_det"] = lc_det
+        det_ok = True
     except Exception as e:
         print(f"Could not fetch detections for {oid}: {e}")
 
@@ -162,9 +170,24 @@ def get_ztf_lc_data(oid, ra=None, dec=None, plot_LC=False, plot_flux=False,
     try:
         lc_nondet = client.query_non_detections(oid, format='pandas').sort_values("mjd")
         results["lc_nondet"] = lc_nondet
+        nondet_ok = True
     except Exception as e:
         print(f"Could not fetch non-detections for {oid}: {e}")
         lc_nondet = pd.DataFrame()
+
+    if not (det_ok or nondet_ok):
+        if pkl_filename.exists():
+            try:
+                with open(pkl_filename, "rb") as f:
+                    cached = pickle.load(f)
+                print(f"Loaded cached ZTF data for {oid}")
+                return cached
+            except Exception as e:
+                raise RuntimeError(
+                    f"API failed and cached file could not be loaded for {oid}: {e}"
+                )
+        else:
+            raise RuntimeError(f"API failed and no cached file exists for {oid}")
 
     if add_forced:
         # Use Kaustav's zenodo published forced photometry data
@@ -180,9 +203,7 @@ def get_ztf_lc_data(oid, ra=None, dec=None, plot_LC=False, plot_flux=False,
         else:
             plot_ztf_lc(results["lc_det"], results["lc_nondet"], oid, flux=plot_flux)
 
-    # Save in pkl because sometimes Alerce API is down
-    pkl_filename = f"/Users/ana/Documents/LL_typeIIP/data/ztf_resdicts/{oid}.pkl"
     with open(pkl_filename, "wb") as f:
         pickle.dump(results, f, protocol=pickle.HIGHEST_PROTOCOL)
-        print("Saved ztf_resdict for", oid, "to data/ztf_resdicts")
+
     return results

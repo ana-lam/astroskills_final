@@ -1,8 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.collections as mcoll
+import matplotlib.colors as mcolors
 import pandas as pd
 from pathlib import Path
+from .wise import get_wise_lc_data
 
 # data directory
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
@@ -20,9 +22,7 @@ def plot_ztf_lc(SN_det, SN_nondet, oid, xlim=(None, None), ax=None, show=True, f
     # Loop over whatever filters are actually present
     for fid in sorted(SN_det.fid.dropna().unique()):
         color = colors.get(fid, "black")
-        label = labels.get(fid, f"fid={fid}")
         marker = markers.get(fid, "o")
-        size = sizes.get(fid, 40)
 
         # --- Detections ---
         mask_det = (SN_det.fid == fid) & SN_det.magpsf.notna()
@@ -31,7 +31,7 @@ def plot_ztf_lc(SN_det, SN_nondet, oid, xlim=(None, None), ax=None, show=True, f
                 SN_det.loc[mask_det, "mjd"],
                 SN_det.loc[mask_det, "magpsf"],
                 yerr=SN_det.loc[mask_det, "sigmapsf"],
-                c=color, label=label,
+                c=color, label=fid,
                 marker=marker, linestyle='none'
             )
 
@@ -42,7 +42,7 @@ def plot_ztf_lc(SN_det, SN_nondet, oid, xlim=(None, None), ax=None, show=True, f
                 SN_nondet.loc[mask_nondet, "mjd"],
                 SN_nondet.loc[mask_nondet, "diffmaglim"],
                 c=color, alpha=0.5, marker='v',
-                label=f"lim.mag. {label}", s=size
+                label=f"lim.mag. {label}"
             )
 
     ax.set_title(oid, fontsize=16)
@@ -222,7 +222,8 @@ def plot_wise_lc(res, oid, xlim=(None, None), ax=None, show=True, show_baselines
         return ax
     
 def plot_combined_lc(ztf_res, wise_res, oid, xlim=(None, None), ztf_flux=True, mode="stacked", scale_wise=True,
-                     baseline_ref="ztf", baseline_dt=100, ref_band="r", logy=True, savepath=None, mark_tail_start=False):
+                     baseline_ref="ztf", baseline_dt=100, ref_band="r", logy=True, savepath=None, mark_tail_start=False,
+                     mark_plateau_end=False):
     """
     Plot ZTF + WISE light curves.
     mode: "stacked" or "overlay"
@@ -343,7 +344,27 @@ def plot_combined_lc(ztf_res, wise_res, oid, xlim=(None, None), ztf_flux=True, m
                 ax1.text(
                     tail_start-2,          # x position (data coords)
                     0.95,                 # y as a fraction of the axes height
-                    "Tail Start",        # text
+                    f"Tail Start ({tail_start:.1f})",        # text
+                    rotation=90,          # vertical text
+                    va="top",             # align text relative to its position
+                    ha="center",
+                    fontsize=9,
+                    color="black",
+                    transform=ax1.get_xaxis_transform(),  # x in data, y in axes coords
+                    clip_on=False,
+                )
+
+        if mark_plateau_end:
+            m = params[['name', 'plateauend', 'tailstart']].dropna()
+            m_dict = dict(zip(m['name'].astype(str), m['plateauend'].astype(float)))
+            if oid in m_dict:
+                tail_start = m_dict[oid]
+                ax1.axvline(tail_start, color='black', linestyle='--', alpha=0.7)
+                ax2.axvline(tail_start, color='black', linestyle='--', alpha=0.7)
+                ax1.text(
+                    tail_start-2,          # x position (data coords)
+                    0.95,                 # y as a fraction of the axes height
+                    f"Plateau End ({tail_start:.1f})",        # text
                     rotation=90,          # vertical text
                     va="top",             # align text relative to its position
                     ha="center",
@@ -454,6 +475,25 @@ def plot_combined_lc(ztf_res, wise_res, oid, xlim=(None, None), ztf_flux=True, m
                     transform=ax.get_xaxis_transform(),  # x in data, y in axes coords
                     clip_on=False,
                 )
+        if mark_plateau_end:
+            m = params[['name', 'plateauend', 'tailstart']].dropna()
+            m_dict = dict(zip(m['name'].astype(str), m['plateauend'].astype(float)))
+            if oid in m_dict:
+                tail_start = m_dict[oid]
+                ax.axvline(tail_start, color='black', linestyle='--', alpha=0.7)
+                ax.axvline(tail_start, color='black', linestyle='--', alpha=0.7)
+                ax.text(
+                    tail_start-2,          # x position (data coords)
+                    0.95,                 # y as a fraction of the axes height
+                    f"Plateau End ({tail_start:.1f})",        # text
+                    rotation=90,          # vertical text
+                    va="top",             # align text relative to its position
+                    ha="center",
+                    fontsize=9,
+                    color="black",
+                    transform=ax.get_xaxis_transform(),  # x in data, y in axes coords
+                    clip_on=False,
+                )
 
         if savepath:
             plt.savefig(savepath, format="pdf", bbox_inches="tight")
@@ -463,4 +503,172 @@ def plot_combined_lc(ztf_res, wise_res, oid, xlim=(None, None), ztf_flux=True, m
 
     else:
         raise ValueError("Invalid mode. Choose 'stacked' or 'overlay'.")
-            
+
+
+def plot_tail_models(oid, pred_df, pred_curves, snr_min=3.0, ax=None, show_ls=True, show_hbm=True,
+                plot_wise=True, xlim=(None, None), ylim=(None, None)):
+    """
+    Plot light curve with least-squares and HBM model fits overlaid.
+    """
+
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(7,5))
+
+    sn_df = df[df['name'] == oid].copy()
+    bands = sn_df['band'].unique()
+
+    ztf_res = pd.read_pickle(DATA_DIR / "ztf_forced_photometry" / f"{oid}_forced.pkl")
+    markers = {"ZTF_g": "o", "ZTF_r": "X", "ZTF_i": "D"}
+    colors = {"ZTF_g": "tab:green", "ZTF_r": "tab:red", "ZTF_i": "tab:orange"}
+
+    t0 = sn_df['t0'].iloc[0]
+
+    for band in bands:
+        band_mask = sn_df['band'] == band
+
+        phase = sn_df.loc[band_mask, "phase"].values
+        flux = sn_df.loc[band_mask, "flux_mJy"].values
+        flux_err = sn_df.loc[band_mask, "flux_err_mJy"].values
+
+        snr = flux / flux_err
+
+        mask = (
+            np.isfinite(phase)
+            & np.isfinite(flux)
+            & np.isfinite(flux_err)
+            & (flux > 0)
+            & (flux_err > 0)
+            & (snr >= snr_min)
+        )
+
+        marker = markers.get(band, "o")
+
+        # ZTF detections
+        ax.errorbar(
+            phase[mask],
+            flux[mask],
+            yerr=flux_err[mask],
+            fmt=marker,
+            label=band,
+            color=colors[band],
+        )
+
+        # ZTF limits
+        lim_flux = sn_df.loc[band_mask, "lim_flux_mJy"].values
+        lim_mask = np.isfinite(phase) & np.isfinite(lim_flux) & (lim_flux > 0)
+        ax.scatter(phase[lim_mask], lim_flux[lim_mask], marker="v", color=colors[band], alpha=0.5)
+
+        # Keep track of x-limits from ZTF data
+        phase_max = phase.max()+30
+        xlim_ztf = ax.get_xlim()
+
+    if show_ls:
+
+        if ['ls_alpha'] not in sn_df.columns or ['ls_beta'] not in sn_df.columns:
+            print("LS fit parameters not found in dataframe. Run fit_ls first.")
+
+        # LS parameters 
+        a_ls = sn_df["ls_alpha"].values[0]
+        b_ls = sn_df["ls_beta"].values[0]
+
+        t_grid = np.linspace(0, phase_max, 200)
+
+        logf_ls = a_ls + b_ls * t_grid
+        flux_ls = 10**logf_ls
+
+        ax.plot(
+                t_grid,
+                flux_ls,
+                color="mediumorchid",
+                linestyle="--",
+                label=f"LS: log F = {a_ls:.2f} + {b_ls:.4f} t",
+                )
+    
+    if show_hbm:
+        alpha_med = pred_df['alpha_med'].values[0]
+        beta_med = pred_df['beta_med'].values[0]
+
+        ax.plot(pred_df['phase'].values, pred_df['flux_q50_mJy'].values,
+                color="mediumorchid",
+                linewidth=2,
+                label="HBM: log F = {alpha_med:.2f} + {beta_med:.4f} t")
+        
+        ax.fill_between(
+            pred_df["phase"].values,
+            pred_df["flux_q16_mJy"].values,
+            pred_df["flux_q84_mJy"].values,
+            color="mediumorchid",
+            alpha=0.2,
+            label="HBM: 16–84%",
+        )
+
+    if plot_wise:
+        res_wise = get_wise_lc_data(oid, plot_LC=False)
+
+        colors = {1: "navy", 2: "dodgerblue"}
+        markers_w = {1: "s", 2: "s"}
+
+        for fid, data in zip(
+            [1, 2],
+            [("b1_times", "b1_fluxes", "b1_fluxerrs"),
+             ("b2_times", "b2_fluxes", "b2_fluxerrs")],
+        ):
+            color = colors.get(fid, "black")
+            marker = markers_w.get(fid, "o")
+
+            mask_det = ~np.isnan(res_wise[data[1]])
+            if np.any(mask_det):
+                ax.errorbar(
+                    res_wise[data[0]][mask_det] - t0,
+                    res_wise[data[1]][mask_det],
+                    yerr=res_wise[data[2]][mask_det],
+                    fmt=marker,
+                    color=color,
+                    label=f"W{fid}",
+                )
+
+    for col in ax.collections:
+        if isinstance(col, mcoll.PathCollection):
+            fcs = col.get_facecolors()
+            if fcs is None or len(fcs) == 0:
+                continue
+            r, g, b, _ = fcs[0]
+            col.set_facecolor((r, g, b, 0.3))
+            col.set_edgecolor((r, g, b, 0.3))
+            col.set_linewidth(1.2)
+            col.set_sizes([20])
+
+    for line in ax.lines:
+        mfc = line.get_markerfacecolor()
+        mec = line.get_markeredgecolor()
+        if mfc is None or mfc == "none":
+            continue
+
+        if isinstance(mfc, (tuple, list)) and len(mfc) == 4:
+            r, g, b, _ = mfc
+        elif isinstance(mfc, str):
+            r, g, b, _ = mcolors.to_rgba(mfc)
+        else:
+            continue
+        line.set_markerfacecolor((r, g, b, 0.3))
+        line.set_markeredgecolor((r, g, b, 1.0))
+        line.set_markeredgewidth(1.2)
+        line.set_markersize(7)
+
+    ax.set_yscale("log")
+    ax.set_xlabel("Phase (days)")
+    ax.set_ylabel("Flux (mJy)")
+    ax.set_title(f"Tail LC for {oid}")
+    ax.grid(True, alpha=0.4)
+    ax.legend(fontsize=9)
+
+    if xlim != (None, None):
+        ax.set_xlim(xlim)
+    else:
+        ax.set_xlim(-10, phase_max)
+
+    if ylim != (None, None):
+        ax.set_ylim(ylim)
+
+    plt.tight_layout()
+    plt.show()
