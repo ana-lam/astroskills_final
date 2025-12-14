@@ -1,3 +1,6 @@
 data/Das_forced_photometry_files/
 data/ztf_resdicts/
 data/ztf_snii_lcs_WISE
+.DS_Store
+data/.DS_Store
+src/tailwise/__pycache__/
