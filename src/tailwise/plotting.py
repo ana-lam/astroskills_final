@@ -674,8 +674,9 @@ def plot_tail_models(oid, df, pred_df, snr_min=3.0, ax=None, show_ls=True, show_
         ax.set_ylim(ylim)
 
     plt.tight_layout()
-    plt.show()
 
     if save_path:
         plt.savefig(save_path, bbox_inches="tight")
         print(f"Saved plot to {save_path}")
+
+    plt.show()
