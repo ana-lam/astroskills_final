@@ -677,5 +677,5 @@ def plot_tail_models(oid, df, pred_df, snr_min=3.0, ax=None, show_ls=True, show_
     plt.show()
 
     if save_path:
-        plt.savefig(save_path, format="pdf", bbox_inches="tight")
+        plt.savefig(save_path, bbox_inches="tight")
         print(f"Saved plot to {save_path}")
