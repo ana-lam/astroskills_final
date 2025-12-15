@@ -7,3 +7,5 @@ Project write up: [`notebooks/project.ipynb`](https://github.com/ana-lam/astrosk
 Demo of predicted tails from model: [`notebooks/generate_model_tail_LCs.ipynb`](https://github.com/ana-lam/astroskills_final/blob/main/notebooks/generate_model_tail_LCs.ipynb)
 
 Model assessment: [`notebooks/model_assessment.ipynb`](https://github.com/ana-lam/astroskills_final/blob/main/notebooks/model_assessment.ipynb)
+
+*To run the code please install `requirements.in` to a conda environment. I had trouble getting `pymc` to play nicely in `uv` + `venv`.*
