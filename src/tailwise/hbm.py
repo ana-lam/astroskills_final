@@ -295,19 +295,19 @@ class TailHBModel:
 
         with pm.Model() as model:
             # hyperpriors for population parameters
-            mu_alpha = pm.Normal("mu_alpha", mu=self.init_mu_alpha, sigma=1.0)
-            sigma_alpha = pm.HalfNormal("sigma_alpha", sigma=self.init_sigma_alpha)
+            mu_alpha = pm.Normal("mu_alpha", mu=self.init_mu_alpha, sigma=1.0) # normal prior
+            sigma_alpha = pm.HalfNormal("sigma_alpha", sigma=self.init_sigma_alpha) # cannot have negative std
 
-            mu_beta = pm.Normal("mu_beta", mu=self.init_mu_beta, sigma=0.1)
-            sigma_beta = pm.HalfNormal("sigma_beta", sigma=self.init_sigma_beta)
+            mu_beta = pm.Normal("mu_beta", mu=self.init_mu_beta, sigma=0.1) # normal prior
+            sigma_beta = pm.HalfNormal("sigma_beta", sigma=self.init_sigma_beta) # cannot have negative std
 
             # intrinsic scatter (beyond measurement errors)
-            sigma_int = pm.HalfNormal("sigma_int", sigma=0.1)
+            sigma_int = pm.HalfNormal("sigma_int", sigma=0.1) # cannot have negative std
 
             # SN specific parameters
             # alpha and beta for each SN
-            alpha = pm.Normal("alpha", mu=mu_alpha, sigma=sigma_alpha, shape=self.N_SN)
-            beta = pm.Normal("beta", mu=mu_beta, sigma=sigma_beta, shape=self.N_SN)
+            alpha = pm.Normal("alpha", mu=mu_alpha, sigma=sigma_alpha, shape=self.N_SN) # normal prior
+            beta = pm.Normal("beta", mu=mu_beta, sigma=sigma_beta, shape=self.N_SN) # normal prior
 
             # observational data
             mu_y = alpha[self.sn_idx] + beta[self.sn_idx] * self.x
