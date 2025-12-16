@@ -8,4 +8,6 @@ Demo of predicted tails from model: [`notebooks/generate_model_tail_LCs.ipynb`](
 
 Model assessment: [`notebooks/model_assessment.ipynb`](https://github.com/ana-lam/astroskills_final/blob/main/notebooks/model_assessment.ipynb)
 
+*Resource Acknowledgement: AI was used to generate code regarding special plotting formats, dataframe manipulation, and debugging computing parameters for sampler + `PyMC` dependency conflict resolution.*
+
 *To run the code please install `requirements.in` to a conda environment. I had trouble getting `pymc` to play nicely in `uv` + `venv`.*
